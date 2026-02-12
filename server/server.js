@@ -1,38 +1,38 @@
 const express = require("express");
 const path = require("path");
+const fs = require("fs");
 
 const app = express();
+const port = 3001;
 
-// A test route to make sure the server is up.
-app.get("/api/ping", (request, response) => {
-  console.log("❇️ Received GET request to /api/ping");
-  response.send("pong!");
+app.use(express.json());
+
+const MOVIE_DATA_PATH = path.join(__dirname, 'movies_metadata.json');
+
+const getMoviesData = () => {
+  try {
+    const rawData = fs.readFileSync(MOVIE_DATA_PATH);
+    return JSON.parse(rawData);
+  } catch (error) { return []; }
+};
+
+app.get("/api/movies", (req, res) => {
+  const movies = getMoviesData();
+  const simplifiedList = movies.map(movie => ({
+    id: movie.id,
+    title: movie.title,
+    tagline: movie.tagline,
+    vote_average: movie.vote_average,
+    poster_path: movie.poster_path
+  }));
+  res.json(simplifiedList);
 });
 
-// A mock route to return some data.
-app.get("/api/movies", (request, response) => {
-  console.log("❇️ Received GET request to /api/movies");
-  response.json({ data: [{ id: 1, name: '1' }, { id: 2, name: '2' }] });
+app.get("/api/movies/:id", (req, res) => {
+  const movies = getMoviesData();
+  const movie = movies.find(m => m.id == req.params.id);
+  if (movie) res.json(movie);
+  else res.status(404).json({ message: "Movie not found" });
 });
 
-// Express port-switching logic
-let port;
-console.log("❇️ NODE_ENV is", process.env.NODE_ENV);
-if (process.env.NODE_ENV === "production") {
-  port = process.env.PORT || 3000;
-  app.use(express.static(path.join(__dirname, "../build")));
-  app.get("*", (request, response) => {
-    response.sendFile(path.join(__dirname, "../build", "index.html"));
-  });
-} else {
-  port = 3001;
-  console.log("⚠️ Not seeing your changes as you develop?");
-  console.log(
-    "⚠️ Do you need to set 'start': 'npm run development' in package.json?"
-  );
-}
-
-// Start the listener!
-const listener = app.listen(port, () => {
-  console.log("❇️ Express server is running on port", listener.address().port);
-});
+app.listen(port, () => console.log("Server running on port", port));
